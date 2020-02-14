@@ -42,7 +42,7 @@ all_bills <- function(session_page){
   return(bill_names)
 }
 
-bill_names <- purrr::map_dfr(session_pages[1:3], all_bills)
+bill_names <- purrr::map_dfr(session_pages[1:5], all_bills)
 
 # Get the link where the bill's text is located, from each bill's page ----
 text_link <- function(bill_name){
@@ -59,18 +59,18 @@ text_link <- function(bill_name){
       }
 }
 
-text_links <- purrr::map_chr(bill_names$link[1:5], text_link)
+text_links <- purrr::map_chr(bill_names$link[1:25], text_link)
 
 # Extract the text from the page ----
 text_extract <- function(text_link){
   # Make sure the link is a real link
-  if (text_link != "") {
+  if (text_link != "" & !identical(text_link, character(0))) {
     link_bow <- polite::bow(text_link)
     # Scraping for parliament publications
     if (grepl("publications\\.parliament", text_link)) {
       # There's first an overview page, we have to navigate to the full page
       text_link_new <- polite::scrape(link_bow) %>%
-        rvest::html_nodes(xpath = '//*[@id="ContentMain"]/div/div[1]/p[2]/a') %>%
+        rvest::html_node(xpath = '//*[@id="ContentMain"]/div/div[1]/p[2]/a') %>%
         rvest::html_attr('href')
       bill_text_link_shorter <- gsub("/[^/]*htm$", "", text_link)
       text_link_full <- paste0(bill_text_link_shorter, "/", text_link_new)
@@ -86,10 +86,10 @@ text_extract <- function(text_link){
   } else {return("")}
 }
 
-text_extract <- purrr::map_chr(text_links, text_extract)
+text_extracts <- purrr::map_chr(text_links, text_extract)
 
 clean_extract <- function(text) {
   text <- gsub(" {2,}", " ", gsub("/(\r\n)+|\r+|\n+|\t+/i", " ", text))
 }
 
-text_clean <- purrr::map_chr(text_extract, clean_extract)
+text_clean <- purrr::map_chr(text_extracts, clean_extract)
