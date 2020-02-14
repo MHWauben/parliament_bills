@@ -50,18 +50,16 @@ text_link <- function(bill_name){
 text_links <- purrr::map_chr(bill_names$link[1:5], text_link)
 
 text_extract <- function(text_link){
-  print(text_link)
   # Make sure the link is a real link
   if (text_link != "") {
     link_bow <- polite::bow(text_link)
     # Scraping for parliament publications
     if (grepl("publications\\.parliament", text_link)) {
-      text_link <- polite::scrape(link_bow) %>%
+      text_link_new <- polite::scrape(link_bow) %>%
         rvest::html_nodes(xpath = '//*[@id="ContentMain"]/div/div[1]/p[2]/a') %>%
         rvest::html_attr('href')
-      bill_text_link_shorter <- gsub("/[^/]*htm$", "", bill_text_link)
-      text_link_full <- paste0(bill_text_link_shorter, "/", text_link)
-      print(text_link_full)
+      bill_text_link_shorter <- gsub("/[^/]*htm$", "", text_link)
+      text_link_full <- paste0(bill_text_link_shorter, "/", text_link_new)
       text_bow <- polite::bow(text_link_full)
       text_extract <- polite::scrape(text_bow) %>%
         rvest::html_node(xpath = '//*[@id="ContentMain"]/div/div[3]') %>%
