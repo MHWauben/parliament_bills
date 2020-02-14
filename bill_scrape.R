@@ -87,3 +87,9 @@ text_extract <- function(text_link){
 }
 
 text_extract <- purrr::map_chr(text_links, text_extract)
+
+clean_extract <- function(text) {
+  text <- gsub(" {2,}", " ", gsub("/(\r\n)+|\r+|\n+|\t+/i", " ", text))
+}
+
+text_clean <- purrr::map_chr(text_extract, clean_extract)
