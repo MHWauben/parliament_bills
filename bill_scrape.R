@@ -4,6 +4,11 @@ library(rvest)
 library(dplyr)
 library(magrittr)
 library(purrr)
+library(pdftools)
+
+# Set parameter to limit how many bills to attempt to import 
+# (note: not all bill text is available yet, this parameter decides how many to attempt)
+no_to_import <- 1000
 
 # Bow = to check we're allowed to scrape.
 parliament_bow <- polite::bow(url = "https://www.parliament.uk/business/bills-and-legislation/current-bills/previous-bills/", 
@@ -51,23 +56,28 @@ text_link <- function(bill_name){
     rvest::html_nodes(xpath = '//*[@id="bill-summary"]/table') %>%
     rvest::html_nodes('td.bill-item-description') %>%
     rvest::html_nodes("a") %>%
-    html_attr('href')
-  bill_text_link <- bill_text_link[grepl("htm", bill_text_link)]
+    rvest::html_attr('href')
+  # Only ready for HTML or PDF pages
+  bill_text_link <- bill_text_link[grepl("(pdf)|(htm)", bill_text_link)][1]
   # Return it if a link was found, otherwise just return an empty string to ensure purrr doesn't break
-  if (!identical(bill_text_link, character(0)) ) { return(bill_text_link)
+  if (!(identical(bill_text_link, character(0)) | is.na(bill_text_link)) ) { 
+    return(bill_text_link)
   } else { return("")
-      }
+    }
 }
 
-text_links <- purrr::map_chr(bill_names$link[1:25], text_link)
+text_links <- purrr::map_chr(bill_names$link[1:no_to_import], text_link)
 
 # Extract the text from the page ----
 text_extract <- function(text_link){
   # Make sure the link is a real link
   if (text_link != "" & !identical(text_link, character(0))) {
-    link_bow <- polite::bow(text_link)
+    # Scraping for PDFs
+    if (grepl('pdf$', text_link)) {
+      text_extract <- paste0(pdftools::pdf_text(text_link), collapse = ' ')
     # Scraping for parliament publications
-    if (grepl("publications\\.parliament", text_link)) {
+    } else if (grepl("publications\\.parliament", text_link)) {
+      link_bow <- polite::bow(text_link)
       # There's first an overview page, we have to navigate to the full page
       text_link_new <- polite::scrape(link_bow) %>%
         rvest::html_node(xpath = '//*[@id="ContentMain"]/div/div[1]/p[2]/a') %>%
@@ -79,11 +89,20 @@ text_extract <- function(text_link){
       text_extract <- polite::scrape(text_bow) %>%
         rvest::html_node(xpath = '//*[@id="ContentMain"]/div/div[3]') %>%
         rvest::html_text()
-    } else {
-      text_extract <- ""
+    } else if (grepl('legislation\\.gov', text_link)) {
+      # Go to full-text page
+      text_link <- gsub('(/contents)|(/data.html?)', '', text_link)
+      text_bow <- polite::bow(text_link)
+      text_extract <- polite::scrape(text_bow) %>%
+        rvest::html_node(xpath = '//*[@id="viewLegSnippet"]') %>%
+        rvest::html_text()
+    }else {
+        text_extract <- ""
     }
     return(text_extract)
-  } else {return("")}
+  } else {
+    return("")
+  }
 }
 
 text_extracts <- purrr::map_chr(text_links, text_extract)
@@ -93,3 +112,6 @@ clean_extract <- function(text) {
 }
 
 text_clean <- purrr::map_chr(text_extracts, clean_extract)
+
+bill_text <- bill_names[1:no_to_import,]
+bill_text$text <- text_clean
