@@ -8,7 +8,7 @@ library(pdftools)
 
 # Set parameter to limit how many bills to attempt to import 
 # (note: not all bill text is available yet, this parameter decides how many to attempt)
-no_to_import <- 1000
+no_to_import <- 500
 
 # Bow = to check we're allowed to scrape.
 parliament_bow <- polite::bow(url = "https://www.parliament.uk/business/bills-and-legislation/current-bills/previous-bills/", 
@@ -115,3 +115,4 @@ text_clean <- purrr::map_chr(text_extracts, clean_extract)
 
 bill_text <- bill_names[1:no_to_import,]
 bill_text$text <- text_clean
+
